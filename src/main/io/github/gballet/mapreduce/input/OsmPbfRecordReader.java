@@ -154,6 +154,8 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 			currentPG = currentPB.getPrimitivegroup(0);
 			currentPGIndex = 0;
 			nNodes 	  = 0;
+		} else {
+			throw new DataFormatException("Unsupported compression algorithm in OSM file block.");
 		}
 		
 		pos = fileFD.getPos();
@@ -205,7 +207,8 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 		end    = start + split.getLength();
 		pos    = start;
 		fileFD = fs.open(file);
-		
+	
+		// TODO support compression
 		CompressionCodec codec = new CompressionCodecFactory(conf).getCodec(file);
 		if (codec != null) {
 			System.err.println("Error! We are using a compressed codec!");
@@ -220,13 +223,13 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 			seekNextFileBlockStart(pos);
 
 			/* Only attempt to load if a block has been found */
-			if (pos < end)
+			if (pos < end) {
 				loadFileBlock(); /* if the block overflows the split, pos will be greater than end after this */
 
 				currentPGIndex = 0;
 				currentPG = currentPB.getPrimitivegroup(currentPGIndex);
 				nNodes = 0;
-
+			}
 		} catch (DataFormatException e) {
 			// TODO Let the system report it to the user
 			e.printStackTrace();
