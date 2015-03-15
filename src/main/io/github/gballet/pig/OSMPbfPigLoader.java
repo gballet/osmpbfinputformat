@@ -33,10 +33,11 @@ public class OSMPbfPigLoader extends LoadFunc {
             in.nextKeyValue();
             OsmPrimitive value = (OsmPrimitive) in.getCurrentValue();
             // do something with value
-            Tuple t =  mTupleFactory.newTuple(3);
+            Tuple t =  mTupleFactory.newTuple(4);
              t.append(value.id);
             t.append(value.lat);
             t.append(value.lon);
+            t.append(value.tags);
             return t;
         } catch (InterruptedException e) {
             int errCode = 6018;

@@ -13,12 +13,16 @@ import crosby.binary.Fileformat.Blob;
 import crosby.binary.Fileformat.BlobHeader;
 import crosby.binary.Osmformat.PrimitiveBlock;
 import crosby.binary.Osmformat.PrimitiveGroup;
+import crosby.binary.Osmformat.StringTable;
 
 import io.github.gballet.osmpbf.OsmPrimitive;
 
-import java.io.DataInputStream;
-import java.io.FileInputStream;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
@@ -31,11 +35,17 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 	private double lastLon;
 	private double lastLat;
 	private long lastId;
+	private String allTags;
 	private PrimitiveBlock currentPB;
+	private StringTable currentST;
+	private boolean	keysValsIsEmpty;
 	private PrimitiveGroup currentPG;
 	private int currentPGIndex;
 	private int nNodes;
+	private int tagLoc; // counter for tag location within DenseNodes -> KeysValues
 	private OsmPrimitive currentPrimitive;
+	
+	private static final Log LOG = LogFactory.getLog(OsmPbfRecordReader.class);
 
 	private static final int DEFAULT_BUFFER_SIZE = 64 * 1024;
 
@@ -151,9 +161,11 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 			inflater.inflate(output);
 			
 			currentPB = PrimitiveBlock.parseFrom(output);
+			currentST = currentPB.getStringtable();
 			currentPG = currentPB.getPrimitivegroup(0);
 			currentPGIndex = 0;
 			nNodes 	  = 0;
+			tagLoc 	  = 0;
 		} else {
 			throw new DataFormatException("Unsupported compression algorithm in OSM file block.");
 		}
@@ -180,7 +192,28 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 		lastLon += 0.000000001 * (currentPB.getLonOffset() + currentPB.getGranularity() * currentPG.getDense().getLon(nNodes));
 		lastLat += 0.000000001 * (currentPB.getLatOffset() + currentPB.getGranularity() * currentPG.getDense().getLat(nNodes));
 		lastId  += currentPG.getDense().getId(nNodes);
-		currentPrimitive = new OsmPrimitive(lastId, lastLon, lastLat);
+		if (!keysValsIsEmpty) {
+			// check the performance of this implementation
+			List<ByteString> entityTags = new ArrayList<ByteString>();
+			if (tagLoc < currentPG.getDense().getKeysValsCount()){ // check before end of list of tagvals
+				while (currentPG.getDense().getKeysVals(tagLoc)!=0 ) {
+	                int keyLookup = currentPG.getDense().getKeysVals(tagLoc);
+	                int valueLookup = currentPG.getDense().getKeysVals(tagLoc +1);
+	                tagLoc += 2;
+	                ByteString key = currentST.getS(keyLookup);
+	                ByteString value = currentST.getS(valueLookup);
+	                entityTags.add(key);
+	                entityTags.add(ByteString.copyFromUtf8(":"));
+	                entityTags.add(value);
+	                entityTags.add(ByteString.copyFromUtf8(";"));
+				}
+				tagLoc ++;
+				allTags = (ByteString.copyFrom(entityTags)).toStringUtf8();
+			}
+		} else {
+			allTags = "";
+		}
+		currentPrimitive = new OsmPrimitive(lastId, lastLon, lastLat, allTags);
 
 		nNodes++;
 
@@ -190,6 +223,11 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 	private boolean loadPrimitiveGroup() {
 		currentPG = currentPB.getPrimitivegroup(currentPGIndex);
 		nNodes = 0;
+		if (currentPG.getDense().getKeysValsCount() > 0) {
+			keysValsIsEmpty = false;
+		} else {
+			keysValsIsEmpty = true;
+		}
 		return loadDenseNode();
 	}
 
@@ -227,6 +265,8 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 				loadFileBlock(); /* if the block overflows the split, pos will be greater than end after this */
 
 				currentPGIndex = 0;
+				currentST = currentPB.getStringtable();
+				
 				currentPG = currentPB.getPrimitivegroup(currentPGIndex);
 				nNodes = 0;
 			}
