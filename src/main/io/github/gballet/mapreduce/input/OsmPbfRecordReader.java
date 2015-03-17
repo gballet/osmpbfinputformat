@@ -42,6 +42,7 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 	private PrimitiveGroup currentPG;
 	private int currentPGIndex;
 	private int nNodes;
+	private int nWays;
 	private int tagLoc; // counter for tag location within DenseNodes -> KeysValues
 	private OsmPrimitive currentPrimitive;
 	
@@ -173,7 +174,22 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 		pos = fileFD.getPos();
 	}
 
-	private int count;
+	private boolean loadWay() {
+		if (currentPG.getDense().getIdCount() <= nWays) {
+			return false;
+		}
+		long wayId = currentPG.getWays(nWays).getId();
+		
+		// get keys and values from string table
+		
+		// get node ids (delta coded)
+		
+		// increment way counter
+		nWays ++;
+		
+		return true;
+		
+	}
 	
 	private boolean loadDenseNode() {
 		/* If we have reached the end of a primitive group, indicate it */
@@ -286,6 +302,12 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 			}
 		}
 		
+		if (currentPG.getWaysCount() > 0) {
+			if (loadWay()) {
+				return true;
+			}
+		}
+		
 		/* Move to the next primitive group, if available */
 		while (++currentPGIndex < currentPB.getPrimitivegroupCount()) {
 			if (loadPrimitiveGroup())
@@ -317,4 +339,5 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 		System.out.println("returning false");
 		return false;
 	}
+
 }
