@@ -153,7 +153,6 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 	private void loadFileBlock() throws IOException, DataFormatException {
 
 		/* At this point, pos is at the beginning of a File block */
-		
 		/* Read the file block header */
 		final BlobHeader header = readHeader();
 		
@@ -174,7 +173,6 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 			currentPB = PrimitiveBlock.parseFrom(output);
 			currentST = currentPB.getStringtable();
 			currentPG = currentPB.getPrimitivegroup(0);
-			LOG.info("loadFileBlock() currentPG.toString(). Current PG: " + currentPG);;
 			currentPGIndex = 0;
 			nNodes 	  = 0;
 			nWays 	  = 0;
@@ -187,10 +185,7 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 	}
 
 	private boolean loadWay() {
-		LOG.info("LoadWay - nWay: "+ nWays);
-		LOG.info("getID: " + currentPG.getWays(nWays).getId());
 		long wayId = currentPG.getWays(nWays).getId();
-		LOG.info("WayID: "+wayId);
 		int keysCount = currentPG.getWays(nWays).getKeysCount();
 		// assume values count is the same
 		
@@ -214,7 +209,6 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 		List<Long> nodeIDList = new ArrayList<Long>();
 		while(nodeRefPos < wayNodesCount) {
 			lastWayNodeId += currentPG.getWays(nWays).getRefs(nodeRefPos);
-			//LOG.info(lastWayNodeId);
 			nodeIDList.add(lastWayNodeId);
 			++nodeRefPos;
 		}
@@ -274,7 +268,6 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 	}
 
 	private boolean loadPrimitiveGroup() {
-		LOG.info("Current primitive group no: " + currentPGIndex);
 		currentPG = currentPB.getPrimitivegroup(currentPGIndex);
 		nNodes = 0;
 		nWays = 0;
@@ -288,7 +281,6 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 			return loadDenseNode();
 		}
 		if (parseType == OsmPbfReaderParseType.WAY) {
-			LOG.info("Returning loadWay()");
 			if (currentPG.getWaysCount() > 0) {
 			return loadWay();
 			} else {
@@ -296,7 +288,6 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 				return loadPrimitiveGroup();
 			}
 		}
-		LOG.info("Returning false from loadPrimitiveGroup()");
 			return false;
 		
 	}
@@ -333,9 +324,7 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 
 			/* Only attempt to load if a block has been found */
 			if (pos < end) {
-				LOG.info("seeking file block - pos: " + pos + " end: " + end);
 				loadFileBlock(); /* if the block overflows the split, pos will be greater than end after this */
-				LOG.info("file block loaded");
 				currentPGIndex = 0;
 				currentST = currentPB.getStringtable();
 				
@@ -351,7 +340,6 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 
 	@Override
 	public boolean nextKeyValue() throws IOException, InterruptedException {
-		LOG.info("K V waysCount: "+ currentPG.getWaysCount());
 		if (parseType == OsmPbfReaderParseType.NODE) {
 			if (currentPG.getDense().getIdCount() > 0 && currentPG.getDense().getIdCount() > nNodes) {
 				if (loadDenseNode()) {
@@ -362,17 +350,13 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 		
 		if (parseType == OsmPbfReaderParseType.WAY) {
 			if (currentPG.getWaysCount() > 0) {
-				LOG.info("Ways count: " + currentPG.getWaysCount());
 				if (loadWay()) {
 					return true;
 				}
 			}
 		}
-		LOG.info("Primitive Group Count: " + currentPB.getPrimitivegroupCount());
 		/* Move to the next primitive group, if available */
 		while (++currentPGIndex < currentPB.getPrimitivegroupCount()) {
-			LOG.info("PG count: "+ currentPB.getPrimitivegroupCount());
-			LOG.info("Loading another primitive group no: " + currentPGIndex);
 			if (loadPrimitiveGroup())
 				return true;
 		}
@@ -385,7 +369,6 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 		while (pos < end)	{
 			/* The following file block is right after this one, so no need to seek it. */
 			try {
-				LOG.info("seeking file block - pos: " + pos + " end: " + end);
 				loadFileBlock();
 
 				currentPGIndex = 0;
@@ -395,13 +378,11 @@ public class OsmPbfRecordReader extends RecordReader<LongWritable, OsmPrimitive>
 					return true;
 				}
 			} catch(Exception e) {
-				LOG.info(e.toString());
 				System.err.println("Error loading the next file block, position=" + pos);
 				return false;
 			}
 		}
 
-		System.out.println("returning false");
 		return false;
 	}
 }

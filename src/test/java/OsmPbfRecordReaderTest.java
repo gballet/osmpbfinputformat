@@ -1,5 +1,6 @@
 package io.github.gballet.mapreduce.osmpbf.test;
 
+
 import io.github.gballet.mapreduce.input.*;
 
 import org.apache.hadoop.conf.*;
@@ -19,8 +20,9 @@ import java.io.IOException;
 import java.io.File;
 
 public class OsmPbfRecordReaderTest {
-	private static double testLon = 8.6726849;
-	private static double testLat = 45.4668769;
+	private static double testLon = -64.1847472;
+	private static double testLat = 10.4769503;
+	private static long testID = 102348670;
 
 	private static String testFileName = "temp.dat";
 
@@ -265,19 +267,26 @@ public class OsmPbfRecordReaderTest {
 		JobConf conf = new JobConf(config, this.getClass());
 
 		OsmPbfRecordReader rr = new OsmPbfRecordReader();
+		rr.parseType = OsmPbfRecordReader.OsmPbfReaderParseType.NODE;
 
 		/* Build the input split from scratch */
 		String[] hosts = { "localhost" };
-		FileSplit fsplit = new FileSplit(new Path(getClass().getResource("/" + testFileName).toString()), 0, 104944, hosts);
+		FileSplit fsplit = new FileSplit(new Path(getClass().getResource("/" + testFileName).toString()), 0, 89683, hosts);
 
 		rr.initialize((InputSplit) fsplit, new DummyContext(conf));
 
 		Assert.assertTrue(rr.nextKeyValue() == true);
-		Assert.assertTrue(rr.getCurrentValue().lon == testLon);
+		
+		Assert.assertTrue(rr.getCurrentValue().lon == testLon);		
 		Assert.assertTrue(rr.getCurrentValue().lat == testLat);
 		for (int i=0; i<7999; i++)
 			Assert.assertTrue(rr.nextKeyValue() == true);
-
-		Assert.assertTrue(rr.nextKeyValue() == false);
+		
+		Assert.assertTrue(rr.nextKeyValue() == true);
+		// now loading ways - 
+		rr.parseType = OsmPbfRecordReader.OsmPbfReaderParseType.WAY;
+		Assert.assertTrue(rr.nextKeyValue() == true); // onto ways primgroup
+		Assert.assertTrue(rr.getCurrentValue().id == testID);
+		
 	}
 }
