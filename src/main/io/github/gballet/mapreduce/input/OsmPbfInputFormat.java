@@ -8,6 +8,7 @@ import java.io.IOException;
 
 import io.github.gballet.osmpbf.OsmPrimitive;
 import io.github.gballet.mapreduce.input.*;
+import io.github.gballet.mapreduce.input.OsmPbfRecordReader.OsmPbfReaderParseType;
 
 public class OsmPbfInputFormat extends FileInputFormat<LongWritable,OsmPrimitive> {
 
