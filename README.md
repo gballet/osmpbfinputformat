@@ -1,12 +1,12 @@
 OsmPbfInputFormat
 =================
 
-An Hadoop API Inputformat for reading Open Street Map Protobuf Files
+An Hadoop API Inputformat for reading Open Street Map Protobuf Files. Currently parsing Nodes and Ways is implemented as a Hadoop Inpput Format and using Pig. Reading relations are not currently implemented. 
 
 Installation
 ------------
 
-This library relies on the Hadoop client library, Google protobufs and the osmpbf library. All dependencies are summarized in the `pom.xml` file, so that maven takes care of them for you. Simply type:
+This library relies on the Hadoop client library, Google protobuf (>= 2.5.0) and the osmpbf library. All dependencies are summarized in the `pom.xml` file, so that maven takes care of them for you. Simply type:
 
 	mvn package
 
@@ -34,11 +34,30 @@ Then, make sure your mapper class has `LongWritable` as its key class and `OsmPr
 
 In the reducer, one can then count the number of nodes per tile.
 
+	
+There is a public integer member `parseType` which is one of:
+- 1 : Node
+- 2 : Way
+- 3 : Relation (**not yet implemented**)
+
+
+This will parse the file according to the desired schema.
+
+Pig
+---
+
+A Pig Loader has been included which will enable loading of PBF datasets into Pig. For example:
+
+`pbf_nodes = LOAD '$inputFile' USING io.github.gballet.pig.OSMPbfPigLoader('1') AS (id:long, lat:double, lon:double, nodeTags:map[]);`
+
+OR
+
+`pbf_ways = LOAD '$inputFile' USING io.github.gballet.pig.OSMPbfPigLoader('2') AS (id:long, nodes:bag{(pos:int, nodeid:long)}, tags:map[]);`
+
 Notes
 -----
 
  * This package relies on [crosby.binary.file](https://github.com/scrosby/OSM-binary), which isn't yet configured to work as a Maven repository. While the pull request gets written and integrated, a pre-compiled version of the library is kept in this repository.
- * In this early version, only dense nodes are supported. Other primitives will be added soon.
 
 Contributing
 ------------
